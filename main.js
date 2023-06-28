@@ -59,7 +59,7 @@ function handle_auth_message(ws, data) {
         "data": {
             "level": "Grassland",
             "address": "127.0.0.1",
-            "port": 3345
+            "port": 4434
         }
     }));
 }
