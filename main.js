@@ -1,20 +1,18 @@
-const { Pool } = require('pg');
 const https = require('https');
 const fs = require('fs');
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
+var database = require("./src/database")
 
-const PORT = 4433;
+const WEBSOCKET_PORT = 4433;
+const LEVELS_INFO = { "Grassland": { "address": "127.0.0.1", "port": 4434 } };
+const STARTER_LEVEL = "Grassland";
+const STARTER_POS = { x: 128.0, y: 128.0 };
 
-const { DB_USER, DB_HOST, DB_PASSWORD } = process.env;
+var players = {};
 
-const pool = new Pool({
-    user: DB_USER,
-    host: DB_HOST,
-    database: 'jdungeon',
-    password: DB_PASSWORD,
-    port: 5432, // default PostgreSQL port
-});
+// Init the database connection
+database.init();
 
 // Load SSL/TLS certificate and key
 const serverOptions = {
@@ -28,11 +26,6 @@ const server = https.createServer(serverOptions);
 // Create a WebSocket server using the HTTPS server
 const wss = new WebSocket.Server({ server });
 
-const LEVELS_INFO = { "Grassland": { "address": "127.0.0.1", "port": 4434 } };
-const STARTER_LEVEL = "Grassland";
-const STARTER_POS = { x: 128.0, y: 128.0 };
-
-var players = {};
 
 // Handle incoming WebSocket connections
 wss.on('connection', (ws) => {
@@ -78,16 +71,29 @@ function parse_message(ws, message) {
 
 async function handle_auth_message(ws, args) {
 
-    var err, result = await pool.query('SELECT * FROM players WHERE username = $1 AND password = $2', [args.username, args.password]);
+    // var err, result = await pool.query('SELECT * FROM players WHERE username = $1 AND password = $2', [args.username, args.password]);
+    var err, result = await database.auth_player(args.username, args.password)
     if (err) {
-        console.error('Error executing query', err);
         ws.send(JSON.stringify({ error: true, reason: "api error" }));
         return;
     }
 
-    var auth = (result.rowCount > 0);
-    var cookie = auth ? uuidv4() : "";
+    var cookie = result ? uuidv4() : "";
 
+    send_auth_response(ws, result, cookie);
+
+    // Authentication failed, disconnecting client
+    if (!result) {
+        ws.close();
+        return;
+    }
+
+    players.ws.username = args.username;
+    players.ws.logged_in = true;
+    players.ws.cookie = cookie
+}
+
+function send_auth_response(ws, auth, cookie) {
     ws.send(JSON.stringify({
         "type": "auth-response",
         "error": false,
@@ -96,19 +102,11 @@ async function handle_auth_message(ws, args) {
             "cookie": cookie
         }
     }));
-
-    // Authentication failed, disconnecting client
-    if (!auth) {
-        ws.close();
-        return;
-    }
-
-    players.ws.logged_in = true;
-    players.ws.cookie = cookie
 }
 
 async function handle_load_character_message(ws, args) {
-    var err, result = await get_character(args.character);
+    // Get the character from the database
+    var err, result = await database.get_character(args.character);
 
     if (err) {
         ws.send(JSON.stringify({ error: true, reason: "api error" }));
@@ -119,10 +117,8 @@ async function handle_load_character_message(ws, args) {
 
     if (result == null) {
         console.log("Creating character for player " + args.username);
-        var err_create, _ = await pool.query(
-            'INSERT INTO characters (name, player, level, pos_x, pos_y) VALUES ($1, $2, $3, $4, $5)',
-            [args.username, args.username, STARTER_LEVEL, STARTER_POS.x, STARTER_POS.y]);
-        if (err_create) {
+        err = database.create_character(args.username, args.username, STARTER_LEVEL, STARTER_POS)
+        if (err) {
             ws.send(JSON.stringify({ error: true, reason: "api error" }));
             return;
         }
@@ -132,28 +128,22 @@ async function handle_load_character_message(ws, args) {
         level_info = LEVELS_INFO[result.level];
     }
 
+    send_load_character_response(ws, "Grassland", level_info.address, level_info.port);
+}
+
+function send_load_character_response(ws, level, address, port) {
     ws.send(JSON.stringify({
         "type": "load-character-response",
         "error": false,
         "data": {
-            "level": "Grassland",
-            "address": level_info.address,
-            "port": level_info.port
+            "level": level,
+            "address": address,
+            "port": port
         }
     }));
 }
 
-async function get_character(character_name) {
-    var err, result = await pool.query('SELECT * FROM characters WHERE name = $1', [character_name]);
-    if (err) {
-        console.error('Error executing query', err);
-        return err, null;
-    }
-
-    return err, (result.rowCount > 0) ? result.rows[0] : null;
-}
-
 // Start the HTTPS server
-server.listen(PORT, () => {
-    console.log('Secure WebSocket server listening on port', PORT);
+server.listen(WEBSOCKET_PORT, () => {
+    console.log('Secure WebSocket server listening on port', WEBSOCKET_PORT);
 });
