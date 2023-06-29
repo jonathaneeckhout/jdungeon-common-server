@@ -1,26 +1,21 @@
 const { v4: uuidv4 } = require('uuid');
 
 var Database = require("./database");
+var Players = require("./players");
 
 const LEVELS_INFO = { "Grassland": { "address": "127.0.0.1", "port": 4434 } };
 const STARTER_LEVEL = "Grassland";
 const STARTER_POS = { x: 128.0, y: 128.0 };
 
 var database = Database.getInstance();
-var players = {}
+var players = Players.getInstance();
 
 function handle_client_connected(ws) {
-    players.ws = {
-        ws: ws,
-        username: "",
-        logged_in: false,
-        cookie: "",
-        connected_time: Date.now()
-    };
+    players.add(ws);
 }
 
 function handle_client_disconnected(ws) {
-    delete players[ws];
+    players.remove(ws);
 }
 
 function handle_client_message(ws, message) {
@@ -63,9 +58,7 @@ async function handle_auth_message(ws, args) {
         return;
     }
 
-    players.ws.username = args.username;
-    players.ws.logged_in = true;
-    players.ws.cookie = cookie
+    players.login(ws, args.username, cookie);
 }
 
 function send_auth_response(ws, auth, cookie) {
