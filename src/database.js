@@ -22,69 +22,76 @@ const createCharactersTableQuery = `
   );
 `;
 
-var pool = null;
-
-function init() {
-    // Connect to database
-    pool = new Pool({
-        user: DB_USER,
-        host: DB_HOST,
-        database: 'jdungeon',
-        password: DB_PASSWORD,
-        port: 5432, // default PostgreSQL port
-    });
-
-    // Create players table
-    pool.query(createPlayersTableQuery, (err, result) => {
-        if (err) {
-            console.error('Error creating players table:', err);
-        } else {
-            console.log('Players table created successfully');
-        }
-    });
-
-    // Create characters table
-    pool.query(createCharactersTableQuery, (err, result) => {
-        if (err) {
-            console.error('Error creating characters table:', err);
-        } else {
-            console.log('Characters table created successfully');
-        }
-    });
-}
-
-async function auth_player(username, password) {
-    var err, result = await pool.query('SELECT * FROM players WHERE username = $1 AND password = $2', [username, password]);
-    if (err) {
-        console.error('Error executing query', err);
-        return err, false;
+class Database {
+    constructor() {
+        this._instance = null;
+        this._pool = null;
     }
 
-    return null, (result.rowCount > 0);
-}
-
-async function create_character(player, character, level, position) {
-    var err, _ = await pool.query(
-        'INSERT INTO characters (name, player, level, pos_x, pos_y) VALUES ($1, $2, $3, $4, $5)',
-        [player, character, level, position.x, position.y]
-    );
-    return err;
-}
-
-async function get_character(character_name) {
-    var err, result = await pool.query('SELECT * FROM characters WHERE name = $1', [character_name]);
-    if (err) {
-        console.error('Error executing query', err);
-        return err, null;
+    static getInstance() {
+        if (!this._instance) {
+            this._instance = new Database();
+        }
+        return this._instance;
     }
 
-    return null, (result.rowCount > 0) ? result.rows[0] : null;
+    init() {
+        // Connect to database
+        this._pool = new Pool({
+            user: DB_USER,
+            host: DB_HOST,
+            database: 'jdungeon',
+            password: DB_PASSWORD,
+            port: 5432, // default PostgreSQL port
+        });
+
+        // Create players table
+        this._pool.query(createPlayersTableQuery, (err, result) => {
+            if (err) {
+                console.error('Error creating players table:', err);
+            } else {
+                console.log('Players table created successfully');
+            }
+        });
+
+        // Create characters table
+        this._pool.query(createCharactersTableQuery, (err, result) => {
+            if (err) {
+                console.error('Error creating characters table:', err);
+            } else {
+                console.log('Characters table created successfully');
+            }
+        });
+    }
+
+    async auth_player(username, password) {
+        var err, result = await this._pool.query('SELECT * FROM players WHERE username = $1 AND password = $2', [username, password]);
+        if (err) {
+            console.error('Error executing query', err);
+            return err, false;
+        }
+
+        return null, (result.rowCount > 0);
+    }
+
+    async create_character(player, character, level, position) {
+        var err, _ = await this._pool.query(
+            'INSERT INTO characters (name, player, level, pos_x, pos_y) VALUES ($1, $2, $3, $4, $5)',
+            [player, character, level, position.x, position.y]
+        );
+        return err;
+    }
+
+    async get_character(character_name) {
+        var err, result = await this._pool.query('SELECT * FROM characters WHERE name = $1', [character_name]);
+        if (err) {
+            console.error('Error executing query', err);
+            return err, null;
+        }
+
+        return null, (result.rowCount > 0) ? result.rows[0] : null;
+    }
 }
 
 
-module.exports = {
-    init,
-    auth_player,
-    create_character,
-    get_character
-};
+module.exports = Database;

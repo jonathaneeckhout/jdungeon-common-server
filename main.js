@@ -2,11 +2,13 @@ const https = require('https');
 const fs = require('fs');
 const WebSocket = require('ws');
 
-var database = require("./src/database");
+var Database = require("./src/database");
 var ws_handler = require("./src/wshandler")
 
 const WEBSOCKET_PORT = 4433;
 
+// Get the database
+var database = Database.getInstance();
 // Init the database connection
 database.init();
 
@@ -21,9 +23,6 @@ const server = https.createServer(serverOptions);
 
 // Create a WebSocket server using the HTTPS server
 const wss = new WebSocket.Server({ server });
-
-// Init the Websocket handler
-ws_handler.init(database);
 
 // Handle incoming WebSocket connections
 wss.on('connection', (ws) => {

@@ -1,15 +1,13 @@
 const { v4: uuidv4 } = require('uuid');
 
+var Database = require("./database");
+
 const LEVELS_INFO = { "Grassland": { "address": "127.0.0.1", "port": 4434 } };
 const STARTER_LEVEL = "Grassland";
 const STARTER_POS = { x: 128.0, y: 128.0 };
 
-var database = null;
+var database = Database.getInstance();
 var players = {}
-
-function init(db) {
-    database = db;
-}
 
 function handle_client_connected(ws) {
     players.ws = {
@@ -122,7 +120,6 @@ function send_load_character_response(ws, level, address, port) {
 
 
 module.exports = {
-    init,
     handle_client_connected,
     handle_client_disconnected,
     handle_client_message,
