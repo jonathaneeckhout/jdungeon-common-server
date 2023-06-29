@@ -26,6 +26,8 @@ class Database {
     constructor() {
         this._instance = null;
         this._pool = null;
+
+        this.init();
     }
 
     static getInstance() {

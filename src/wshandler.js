@@ -1,7 +1,12 @@
+const https = require('https');
+const fs = require('fs');
+const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 
 var Database = require("./database");
 var Players = require("./players");
+
+const WEBSOCKET_PORT = 4433;
 
 const LEVELS_INFO = { "Grassland": { "address": "127.0.0.1", "port": 4434 } };
 const STARTER_LEVEL = "Grassland";
@@ -9,6 +14,36 @@ const STARTER_POS = { x: 128.0, y: 128.0 };
 
 var database = Database.getInstance();
 var players = Players.getInstance();
+
+// Load SSL/TLS certificate and key
+const serverOptions = {
+    cert: fs.readFileSync('data/certs/ws/X509_certificate.crt'),
+    key: fs.readFileSync('data/certs/ws/X509_key.key')
+};
+
+// Create an HTTPS server, this one is used for player's communication
+const server = https.createServer(serverOptions);
+
+// Create a WebSocket server using the HTTPS server
+const wss = new WebSocket.Server({ server });
+
+// Handle incoming WebSocket connections
+wss.on('connection', (ws) => {
+    console.log('New client connected');
+    handle_client_connected(ws);
+
+    // Handle incoming messages from the client
+    ws.on('message', (message) => {
+        handle_client_message(ws, message);
+
+    });
+
+    // Handle WebSocket connection close
+    ws.on('close', () => {
+        console.log('Client disconnected');
+        handle_client_disconnected(ws);
+    });
+});
 
 function handle_client_connected(ws) {
     players.add(ws);
@@ -19,11 +54,11 @@ function handle_client_disconnected(ws) {
 }
 
 function handle_client_message(ws, message) {
-    // try {
-    parse_message(ws, JSON.parse(message.toString()))
-    // } catch (error) {
-    //     ws.send(JSON.stringify({ error: true, reason: "api error" }));
-    // }
+    try {
+        parse_message(ws, JSON.parse(message.toString()))
+    } catch (error) {
+        ws.send(JSON.stringify({ error: true, reason: "api error" }));
+    }
 }
 
 function parse_message(ws, message) {
@@ -111,9 +146,7 @@ function send_load_character_response(ws, level, address, port) {
     }));
 }
 
-
-module.exports = {
-    handle_client_connected,
-    handle_client_disconnected,
-    handle_client_message,
-};
+// Start the HTTPS server used for the players
+server.listen(WEBSOCKET_PORT, () => {
+    console.log('Secure WebSocket server listening on port', WEBSOCKET_PORT);
+});

@@ -30,6 +30,26 @@ class Players {
         this.players[ws].logged_in = true;
         this.players[ws].cookie = cookie
     }
+
+    get_by_username(username) {
+        for (key in this.players) {
+            const player = this.players[key];
+            console.log(player);
+            if (player.username == username) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    auth_with_cookie(username, cookie) {
+        var player = this.get_by_username(username);
+        if (!player) {
+            return false;
+        }
+
+        return (player.cookie == cookie)
+    }
 }
 
 module.exports = Players;
