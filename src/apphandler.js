@@ -19,11 +19,12 @@ const serverOptions = {
 // Init express app
 const app = express();
 
+app.use(express.json());
+
 // Create Express HTTPS server
 const server = https.createServer(serverOptions, app);
 
-
-app.post('/api', (req, res) => {
+app.post('/api', async (req, res) => {
     try {
         switch (req.body.type) {
             case "auth-cookie":
@@ -38,9 +39,9 @@ app.post('/api', (req, res) => {
     }
 });
 
-app.get('/api/characters/:name', (req, res) => {
+app.get('/api/characters/:name', async (req, res) =>  {
     try {
-        var err, character = database.get_character(req.params.name);
+        var err, character = await database.get_character(req.params.name);
         if (err) {
             console.error('Error executing query', err);
             res.json({ error: true, reason: "api error" });

@@ -26,15 +26,14 @@ class Players {
     }
 
     login(ws, username, cookie) {
+        console.log("Player " + username + " logged in")
         this.players[ws].username = username;
         this.players[ws].logged_in = true;
         this.players[ws].cookie = cookie
     }
 
     get_by_username(username) {
-        for (key in this.players) {
-            const player = this.players[key];
-            console.log(player);
+        for (const [key, player] of Object.entries(this.players)) {
             if (player.username == username) {
                 return player;
             }
