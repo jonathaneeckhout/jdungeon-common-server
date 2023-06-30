@@ -1,7 +1,7 @@
 class Players {
     constructor() {
         this._instance = null;
-        this.players = {};
+        this.players = [];
     }
 
     static getInstance() {
@@ -12,30 +12,44 @@ class Players {
     }
 
     add(ws) {
-        this.players[ws] = {
+        this.players.push({
             ws: ws,
             username: "",
             logged_in: false,
             cookie: "",
             connected_time: Date.now()
-        };
+        });
     }
 
     remove(ws) {
-        delete this.players[ws];
+        for (var i = 0; i < this.players.length; i++) {
+            if (ws === this.players[i].ws) {
+                this.players.splice(i, 1);
+            }
+        }
     }
 
     login(ws, username, cookie) {
         console.log("Player " + username + " logged in")
-        this.players[ws].username = username;
-        this.players[ws].logged_in = true;
-        this.players[ws].cookie = cookie
+        var player = this.get_by_ws(ws);
+        player.username = username;
+        player.logged_in = true;
+        player.cookie = cookie
+    }
+
+    get_by_ws(ws) {
+        for (var i = 0; i < this.players.length; i++) {
+            if (ws === this.players[i].ws) {
+                return this.players[i];
+            }
+        }
+        return null;
     }
 
     get_by_username(username) {
-        for (const [key, player] of Object.entries(this.players)) {
-            if (player.username == username) {
-                return player;
+        for (var i = 0; i < this.players.length; i++) {
+            if (username === this.players[i].username) {
+                return this.players[i];
             }
         }
         return null;

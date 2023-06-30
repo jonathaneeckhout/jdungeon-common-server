@@ -57,6 +57,7 @@ function handle_client_message(ws, message) {
     try {
         parse_message(ws, JSON.parse(message.toString()))
     } catch (error) {
+        console.log(error)
         ws.send(JSON.stringify({ error: true, reason: "api error" }));
     }
 }
@@ -69,6 +70,8 @@ function parse_message(ws, message) {
         case "load-character":
             handle_load_character_message(ws, message.args);
             break;
+        case "send-chat-message":
+            handle_send_message_message(ws, message.args);
         default:
             break;
     }
@@ -144,6 +147,46 @@ function send_load_character_response(ws, level, address, port) {
             "port": port
         }
     }));
+}
+
+function handle_send_message_message(ws, args) {
+    var player = players.get_by_ws(ws);
+    if (player == null) {
+        ws.send(JSON.stringify({ error: true, reason: "player does not exist" }));
+        return;
+    }
+
+    if (!player.logged_in) {
+        ws.send(JSON.stringify({ error: true, reason: "not logged in" }));
+        return;
+    }
+
+    switch (args.type) {
+        case "Global":
+            var ws_message = JSON.stringify({
+                "type": "chat-message",
+                "error": false,
+                "data": {
+                    "type": "Global",
+                    "from": player.username,
+                    "message": args.message
+                }
+            });
+            for (var i = 0; i < players.players.length; i++) {
+                if (players.players[i].logged_in) {
+                    players.players[i].ws.send(ws_message);
+                }
+            }
+            break;
+        case "Team":
+            // TODO: team's message does not exist yet
+            break;
+        case "Wisper":
+            // TODO: implement wisper messages
+            break;
+        default:
+            break;
+    }
 }
 
 // Start the HTTPS server used for the players
