@@ -6,11 +6,11 @@ const { v4: uuidv4 } = require('uuid');
 var Database = require("./database");
 var Players = require("./players");
 
-const WEBSOCKET_PORT = 4433;
+const WEBSOCKET_PORT = parseInt(process.env.WEBSOCKET_PORT, 10);
 
-const LEVELS_INFO = { "Grassland": { "address": "127.0.0.1", "port": 4434 } };
-const STARTER_LEVEL = "Grassland";
-const STARTER_POS = { x: 128.0, y: 128.0 };
+const LEVELS_INFO = JSON.parse(process.env.LEVELS_INFO);
+const STARTER_LEVEL = process.env.STARTER_LEVEL;
+const STARTER_POS = JSON.parse(process.env.STARTER_POS);
 
 var database = Database.getInstance();
 var players = Players.getInstance();
@@ -79,7 +79,6 @@ function parse_message(ws, message) {
 
 async function handle_auth_message(ws, args) {
 
-    // var err, result = await pool.query('SELECT * FROM players WHERE username = $1 AND password = $2', [args.username, args.password]);
     var err, result = await database.auth_player(args.username, args.password)
     if (err) {
         ws.send(JSON.stringify({ error: true, reason: "api error" }));

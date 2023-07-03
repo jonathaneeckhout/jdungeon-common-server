@@ -5,7 +5,7 @@ const express = require('express');
 var Database = require("./database");
 var Players = require("./players");
 
-const APP_PORT = 3001;
+const APP_PORT = parseInt(process.env.APP_PORT, 10);
 
 var database = Database.getInstance();
 var players = Players.getInstance();
