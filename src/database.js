@@ -1,12 +1,16 @@
 const { Pool } = require('pg');
 
-const { DB_USER, DB_HOST, DB_PASSWORD } = process.env;
+const DB_HOST = process.env.POSTGRES_HOST;
+const DB_PORT = parseInt(process.env.POSTGRES_PORT, 10);
+const DB_USER = process.env.POSTGRES_USER;
+const DB_PASSWORD = process.env.POSTGRES_PASSWORD;
+const DB_DB = process.env.POSTGRES_DB;
 
 const createPlayersTableQuery = `
   CREATE TABLE IF NOT EXISTS players (
     id SERIAL PRIMARY KEY,
     username VARCHAR(255) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL
   );
 `;
@@ -42,9 +46,9 @@ class Database {
         this._pool = new Pool({
             user: DB_USER,
             host: DB_HOST,
-            database: 'jdungeon',
+            database: DB_DB,
             password: DB_PASSWORD,
-            port: 5432, // default PostgreSQL port
+            port: DB_PORT, // default PostgreSQL port
         });
 
         // Create players table
