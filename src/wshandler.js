@@ -4,7 +4,6 @@ var Database = require("./database");
 var Sessions = require("./sessions");
 var AppHandler = require("./apphandler");
 
-const LEVELS_INFO = JSON.parse(process.env.LEVELS_INFO);
 const STARTER_LEVEL = process.env.STARTER_LEVEL;
 const STARTER_POS = JSON.parse(process.env.STARTER_POS);
 
@@ -101,7 +100,7 @@ class WsHandler {
             return;
         }
 
-        var level_info = null;
+        var level = "";
 
         if (result == null) {
             console.log("Creating character for player " + args.username);
@@ -110,13 +109,15 @@ class WsHandler {
                 ws.send(JSON.stringify({ error: true, reason: "api error" }));
                 return;
             }
-            level_info = LEVELS_INFO[STARTER_LEVEL];
+            level = STARTER_LEVEL;
 
         } else {
-            level_info = LEVELS_INFO[result.level];
+            level = result.level;
         }
 
-        this.send_load_character_response(ws, "Grassland", level_info.address, level_info.port);
+        err, result = await this.database.get_level(level);
+
+        this.send_load_character_response(ws, level, result.address, result.port);
     }
 
     send_load_character_response(ws, level, address, port) {

@@ -6,6 +6,16 @@ const DB_USER = process.env.POSTGRES_USER;
 const DB_PASSWORD = process.env.POSTGRES_PASSWORD;
 const DB_DB = process.env.POSTGRES_DB;
 
+const createLevelsTableQuery = `
+  CREATE TABLE IF NOT EXISTS levels (
+    id SERIAL PRIMARY KEY,
+    level VARCHAR(255) NOT NULL UNIQUE,
+    key VARCHAR(255) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    port INTEGER NOT NULL
+  );
+`;
+
 const createPlayersTableQuery = `
   CREATE TABLE IF NOT EXISTS players (
     id SERIAL PRIMARY KEY,
@@ -51,6 +61,15 @@ class Database {
             port: DB_PORT, // default PostgreSQL port
         });
 
+        // Create level table
+        this._pool.query(createLevelsTableQuery, (err, result) => {
+            if (err) {
+                console.error('Error creating level table:', err);
+            } else {
+                console.log('Levels table created successfully');
+            }
+        });
+
         // Create players table
         this._pool.query(createPlayersTableQuery, (err, result) => {
             if (err) {
@@ -80,6 +99,16 @@ class Database {
         return null, (result.rowCount > 0);
     }
 
+    async auth_level(level, key) {
+        var err, result = await this._pool.query('SELECT * FROM levels WHERE level = $1 AND key = $2', [level, key]);
+        if (err) {
+            console.error('Error executing query', err);
+            return err, false;
+        }
+
+        return null, (result.rowCount > 0);
+    }
+
     async create_character(player, character, level, position) {
         var err, _ = await this._pool.query(
             'INSERT INTO characters (name, player, level, pos_x, pos_y) VALUES ($1, $2, $3, $4, $5)',
@@ -90,6 +119,16 @@ class Database {
 
     async get_character(character_name) {
         var err, result = await this._pool.query('SELECT * FROM characters WHERE name = $1', [character_name]);
+        if (err) {
+            console.error('Error executing query', err);
+            return err, null;
+        }
+
+        return null, (result.rowCount > 0) ? result.rows[0] : null;
+    }
+
+    async get_level(level_name) {
+        var err, result = await this._pool.query('SELECT * FROM levels WHERE level = $1', [level_name]);
         if (err) {
             console.error('Error executing query', err);
             return err, null;

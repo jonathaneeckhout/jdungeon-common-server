@@ -29,7 +29,26 @@ class AppHandler {
         // Create Express HTTPS server
         this.server = https.createServer(serverOptions, this.app);
 
-        this.app.post('/login', async (req, res) => {
+
+        this.handle_paths();
+    }
+
+    static getInstance() {
+        if (!this._instance) {
+            this._instance = new AppHandler();
+        }
+        return this._instance;
+    }
+
+    run() {
+        // Start the HTTPS server used for level servers
+        this.server.listen(APP_PORT, () => {
+            console.log('Secure app server listening on port', APP_PORT);
+        });
+    }
+
+    handle_paths() {
+        this.app.post('/login/player', async (req, res) => {
             try {
                 var err, result = await this.database.auth_player(req.body.username, req.body.password)
                 if (err) {
@@ -53,9 +72,33 @@ class AppHandler {
             }
         });
 
+        this.app.post('/login/level', async (req, res) => {
+            try {
+                var err, result = await this.database.auth_level(req.body.level, req.body.key)
+                if (err) {
+                    res.json({ error: true, reason: "api error" });
+                    return;
+                }
+
+                if (!result) {
+                    res.json({ error: false, data: { auth: false } });
+                    return;
+                };
+
+                const id = uuid.v4();
+                req.session.levelId = id;
+                req.session.levelName = req.body.level;
+
+                res.json({ error: false, data: { auth: true } });
+
+            } catch (error) {
+                res.json({ error: true, reason: "api error" })
+            }
+        });
+
         this.app.get('/api/characters/:name', async (req, res) => {
             try {
-                if (!req.session.userId) {
+                if (!req.session.levelId) {
                     res.json({ error: true, reason: "unauthorized" })
                     return;
                 }
@@ -74,20 +117,6 @@ class AppHandler {
             } catch (error) {
                 res.json({ error: true, reason: "api error" })
             }
-        });
-    }
-
-    static getInstance() {
-        if (!this._instance) {
-            this._instance = new AppHandler();
-        }
-        return this._instance;
-    }
-
-    run() {
-        // Start the HTTPS server used for level servers
-        this.server.listen(APP_PORT, () => {
-            console.log('Secure app server listening on port', APP_PORT);
         });
     }
 
