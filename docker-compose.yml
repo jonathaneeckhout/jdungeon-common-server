@@ -9,6 +9,4 @@ services:
     restart: always
     environment:
       - NODE_ENV=production
-    volumes:
-      - ./:/app
     network_mode: "host"
