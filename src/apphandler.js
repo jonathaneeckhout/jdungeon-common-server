@@ -1,14 +1,12 @@
 const https = require('https');
 const fs = require('fs');
 const express = require('express');
+const uuid = require('uuid');
 
 var Database = require("./database");
-var Players = require("./players");
+var Sessions = require("./sessions");
 
 const APP_PORT = parseInt(process.env.APP_PORT, 10);
-
-var database = Database.getInstance();
-var players = Players.getInstance();
 
 // TODO: use other certificates for this connection
 const serverOptions = {
@@ -16,48 +14,85 @@ const serverOptions = {
     key: fs.readFileSync('data/certs/app/X509_key.key')
 };
 
-// Init express app
-const app = express();
+class AppHandler {
+    constructor() {
+        this._instance = null;
+        this.database = Database.getInstance();
+        this.sessions = Sessions.getInstance();
 
-app.use(express.json());
+        // Init express app
+        this.app = express();
 
-// Create Express HTTPS server
-const server = https.createServer(serverOptions, app);
+        this.app.use(express.json());
+        this.app.use(this.sessions.sessionParser);
 
-app.post('/api', async (req, res) => {
-    try {
-        switch (req.body.type) {
-            case "auth-cookie":
-                res.json({ error: false, data: { auth: players.auth_with_cookie(req.body.args.username, req.body.args.cookie) } });
-                break;
-            default:
+        // Create Express HTTPS server
+        this.server = https.createServer(serverOptions, this.app);
+
+        this.app.post('/login', async (req, res) => {
+            try {
+                var err, result = await this.database.auth_player(req.body.username, req.body.password)
+                if (err) {
+                    res.json({ error: true, reason: "api error" });
+                    return;
+                }
+
+                if (!result) {
+                    res.json({ error: false, data: { auth: false } });
+                    return;
+                };
+
+                const id = uuid.v4();
+                req.session.userId = id;
+                req.session.username = req.body.username;
+
+                res.json({ error: false, data: { auth: true } });
+
+            } catch (error) {
                 res.json({ error: true, reason: "api error" })
-                break;
-        }
-    } catch (error) {
-        res.json({ error: true, reason: "api error" })
-    }
-});
-
-app.get('/api/characters/:name', async (req, res) =>  {
-    try {
-        var err, character = await database.get_character(req.params.name);
-        if (err) {
-            console.error('Error executing query', err);
-            res.json({ error: true, reason: "api error" });
-        } else {
-            if (character) {
-                res.json({ error: false, data: { name: character.name, player: character.player, level: character.level, position: { x: character.pos_x, y: character.pos_y } } });
-            } else {
-                res.json({ error: true, reason: "not found" });
             }
-        }
-    } catch (error) {
-        res.json({ error: true, reason: "api error" })
-    }
-});
+        });
 
-// Start the HTTPS server used for level servers
-server.listen(APP_PORT, () => {
-    console.log('Secure app server listening on port', APP_PORT);
-});
+        this.app.get('/api/characters/:name', async (req, res) => {
+            try {
+                if (!req.session.userId) {
+                    res.json({ error: true, reason: "unauthorized" })
+                    return;
+                }
+
+                var err, character = await this.database.get_character(req.params.name);
+                if (err) {
+                    console.error('Error executing query', err);
+                    res.json({ error: true, reason: "api error" });
+                } else {
+                    if (character) {
+                        res.json({ error: false, data: { name: character.name, player: character.player, level: character.level, position: { x: character.pos_x, y: character.pos_y } } });
+                    } else {
+                        res.json({ error: true, reason: "not found" });
+                    }
+                }
+            } catch (error) {
+                res.json({ error: true, reason: "api error" })
+            }
+        });
+    }
+
+    static getInstance() {
+        if (!this._instance) {
+            this._instance = new AppHandler();
+        }
+        return this._instance;
+    }
+
+    run() {
+        // Start the HTTPS server used for level servers
+        this.server.listen(APP_PORT, () => {
+            console.log('Secure app server listening on port', APP_PORT);
+        });
+    }
+
+}
+
+module.exports = AppHandler;
+
+

@@ -2,7 +2,9 @@
 require('dotenv').config();
 
 // Start the websocket server
-require("./src/wshandler")
+// require("./src/wshandler")
 
 // Start the app server
-require("./src/apphandler")
+var appHandler = require("./src/apphandler").getInstance();
+var wsHandler = require("./src/wshandler").getInstance();
+appHandler.run();

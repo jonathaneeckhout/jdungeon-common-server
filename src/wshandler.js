@@ -1,194 +1,163 @@
-const https = require('https');
-const fs = require('fs');
 const WebSocket = require('ws');
-const { v4: uuidv4 } = require('uuid');
 
 var Database = require("./database");
-var Players = require("./players");
-
-const WEBSOCKET_PORT = parseInt(process.env.WEBSOCKET_PORT, 10);
+var Sessions = require("./sessions");
+var AppHandler = require("./apphandler");
 
 const LEVELS_INFO = JSON.parse(process.env.LEVELS_INFO);
 const STARTER_LEVEL = process.env.STARTER_LEVEL;
 const STARTER_POS = JSON.parse(process.env.STARTER_POS);
 
-var database = Database.getInstance();
-var players = Players.getInstance();
-
-// Load SSL/TLS certificate and key
-const serverOptions = {
-    cert: fs.readFileSync('data/certs/ws/X509_certificate.crt'),
-    key: fs.readFileSync('data/certs/ws/X509_key.key')
-};
-
-// Create an HTTPS server, this one is used for player's communication
-const server = https.createServer(serverOptions);
-
-// Create a WebSocket server using the HTTPS server
-const wss = new WebSocket.Server({ server });
-
-// Handle incoming WebSocket connections
-wss.on('connection', (ws) => {
-    console.log('New client connected');
-    handle_client_connected(ws);
-
-    // Handle incoming messages from the client
-    ws.on('message', (message) => {
-        handle_client_message(ws, message);
-
-    });
-
-    // Handle WebSocket connection close
-    ws.on('close', () => {
-        console.log('Client disconnected');
-        handle_client_disconnected(ws);
-    });
-});
-
-function handle_client_connected(ws) {
-    players.add(ws);
+function onSocketError(err) {
+    console.error(err);
 }
 
-function handle_client_disconnected(ws) {
-    players.remove(ws);
-}
+class WsHandler {
+    constructor() {
+        this._instance = null;
+        this.database = Database.getInstance();
+        this.sessions = Sessions.getInstance();
+        this.appHandler = AppHandler.getInstance();
 
-function handle_client_message(ws, message) {
-    try {
-        parse_message(ws, JSON.parse(message.toString()))
-    } catch (error) {
-        console.log(error)
-        ws.send(JSON.stringify({ error: true, reason: "api error" }));
-    }
-}
+        this.wss = new WebSocket.WebSocketServer({ clientTracking: false, noServer: true });
 
-function parse_message(ws, message) {
-    switch (message.type) {
-        case "auth":
-            handle_auth_message(ws, message.args);
-            break;
-        case "load-character":
-            handle_load_character_message(ws, message.args);
-            break;
-        case "send-chat-message":
-            handle_send_message_message(ws, message.args);
-        default:
-            break;
-    }
-}
+        this.appHandler.server.on('upgrade', (request, socket, head) => {
+            socket.on('error', onSocketError);
 
-async function handle_auth_message(ws, args) {
+            console.log('Parsing session from request...');
 
-    var err, result = await database.auth_player(args.username, args.password)
-    if (err) {
-        ws.send(JSON.stringify({ error: true, reason: "api error" }));
-        return;
+            this.sessions.sessionParser(request, {}, () => {
+                if (!request.session.userId) {
+                    console.log("Not authorized");
+                    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                    socket.destroy();
+                    return;
+                }
+
+                console.log('Session is parsed!');
+
+                socket.removeListener('error', onSocketError);
+
+                this.wss.handleUpgrade(request, socket, head, (ws) => {
+                    this.wss.emit('connection', ws, request);
+                });
+            });
+        });
+
+        this.wss.on('connection', (ws, request) => {
+            const userId = request.session.userId;
+            const username = request.session.username;
+
+            this.sessions.map.set(userId, ws);
+
+            console.log("Logged in");
+
+            ws.on('error', console.error);
+
+            ws.on('message', (message) => {
+                this.handle_client_message(ws, username, message);
+            });
+
+            ws.on('close', () => {
+                this.sessions.map.delete(userId);
+            });
+        });
     }
 
-    var cookie = result ? uuidv4() : "";
-
-    send_auth_response(ws, result, cookie);
-
-    // Authentication failed, disconnecting client
-    if (!result) {
-        ws.close();
-        return;
-    }
-
-    players.login(ws, args.username, cookie);
-}
-
-function send_auth_response(ws, auth, cookie) {
-    ws.send(JSON.stringify({
-        "type": "auth-response",
-        "error": false,
-        "data": {
-            "auth": auth,
-            "cookie": cookie
+    static getInstance() {
+        if (!this._instance) {
+            this._instance = new WsHandler();
         }
-    }));
-}
-
-async function handle_load_character_message(ws, args) {
-    // Get the character from the database
-    var err, result = await database.get_character(args.character);
-
-    if (err) {
-        ws.send(JSON.stringify({ error: true, reason: "api error" }));
-        return;
+        return this._instance;
     }
 
-    var level_info = null;
+    handle_client_message(ws, username, message) {
+        try {
+            this.parse_message(ws, username, JSON.parse(message.toString()))
+        } catch (error) {
+            console.log(error)
+            ws.send(JSON.stringify({ error: true, reason: "api error" }));
+        }
+    }
 
-    if (result == null) {
-        console.log("Creating character for player " + args.username);
-        err = database.create_character(args.username, args.username, STARTER_LEVEL, STARTER_POS)
+    parse_message(ws, username, message) {
+        switch (message.type) {
+            case "load-character":
+                this.handle_load_character_message(ws, message.args);
+                break;
+            case "send-chat-message":
+                this.handle_send_message_message(ws, username, message.args);
+            default:
+                break;
+        }
+    }
+
+    async handle_load_character_message(ws, args) {
+        // Get the character from the database
+        var err, result = await this.database.get_character(args.character);
+
         if (err) {
             ws.send(JSON.stringify({ error: true, reason: "api error" }));
             return;
         }
-        level_info = LEVELS_INFO[STARTER_LEVEL];
 
-    } else {
-        level_info = LEVELS_INFO[result.level];
-    }
+        var level_info = null;
 
-    send_load_character_response(ws, "Grassland", level_info.address, level_info.port);
-}
-
-function send_load_character_response(ws, level, address, port) {
-    ws.send(JSON.stringify({
-        "type": "load-character-response",
-        "error": false,
-        "data": {
-            "level": level,
-            "address": address,
-            "port": port
-        }
-    }));
-}
-
-function handle_send_message_message(ws, args) {
-    var player = players.get_by_ws(ws);
-    if (player == null) {
-        ws.send(JSON.stringify({ error: true, reason: "player does not exist" }));
-        return;
-    }
-
-    if (!player.logged_in) {
-        ws.send(JSON.stringify({ error: true, reason: "not logged in" }));
-        return;
-    }
-
-    switch (args.type) {
-        case "Global":
-            var ws_message = JSON.stringify({
-                "type": "chat-message",
-                "error": false,
-                "data": {
-                    "type": "Global",
-                    "from": player.username,
-                    "message": args.message
-                }
-            });
-            for (var i = 0; i < players.players.length; i++) {
-                if (players.players[i].logged_in) {
-                    players.players[i].ws.send(ws_message);
-                }
+        if (result == null) {
+            console.log("Creating character for player " + args.username);
+            err = database.create_character(args.username, args.username, STARTER_LEVEL, STARTER_POS)
+            if (err) {
+                ws.send(JSON.stringify({ error: true, reason: "api error" }));
+                return;
             }
-            break;
-        case "Team":
-            // TODO: team's message does not exist yet
-            break;
-        case "Wisper":
-            // TODO: implement wisper messages
-            break;
-        default:
-            break;
+            level_info = LEVELS_INFO[STARTER_LEVEL];
+
+        } else {
+            level_info = LEVELS_INFO[result.level];
+        }
+
+        this.send_load_character_response(ws, "Grassland", level_info.address, level_info.port);
     }
+
+    send_load_character_response(ws, level, address, port) {
+        ws.send(JSON.stringify({
+            "type": "load-character-response",
+            "error": false,
+            "data": {
+                "level": level,
+                "address": address,
+                "port": port
+            }
+        }));
+    }
+
+    handle_send_message_message(ws, username, args) {
+        switch (args.type) {
+            case "Global":
+                var ws_message = JSON.stringify({
+                    "type": "chat-message",
+                    "error": false,
+                    "data": {
+                        "type": "Global",
+                        "from": username,
+                        "message": args.message
+                    }
+                });
+                for (const [key, value] of this.sessions.map) {
+                    value.send(ws_message)
+                }
+                break;
+            case "Team":
+                // TODO: team's message does not exist yet
+                break;
+            case "Wisper":
+                // TODO: implement wisper messages
+                break;
+            default:
+                break;
+        }
+    }
+
 }
 
-// Start the HTTPS server used for the players
-server.listen(WEBSOCKET_PORT, () => {
-    console.log('Secure WebSocket server listening on port', WEBSOCKET_PORT);
-});
+module.exports = WsHandler;
