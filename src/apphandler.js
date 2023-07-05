@@ -7,11 +7,12 @@ var Database = require("./database");
 var Sessions = require("./sessions");
 
 const APP_PORT = parseInt(process.env.APP_PORT, 10);
+const APP_CRT = process.env.APP_CRT;
+const APP_KEY = process.env.APP_KEY;
 
-// TODO: use other certificates for this connection
 const serverOptions = {
-    cert: fs.readFileSync('data/certs/app/X509_certificate.crt'),
-    key: fs.readFileSync('data/certs/app/X509_key.key')
+    cert: fs.readFileSync(APP_CRT),
+    key: fs.readFileSync(APP_KEY)
 };
 
 class AppHandler {
