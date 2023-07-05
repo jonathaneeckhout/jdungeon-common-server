@@ -104,7 +104,7 @@ class WsHandler {
 
         if (result == null) {
             console.log("Creating character for player " + args.username);
-            err = database.create_character(args.username, args.username, STARTER_LEVEL, STARTER_POS)
+            err = await this.database.create_character(args.username, args.username, STARTER_LEVEL, STARTER_POS)
             if (err) {
                 ws.send(JSON.stringify({ error: true, reason: "api error" }));
                 return;
