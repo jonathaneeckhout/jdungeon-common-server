@@ -23,8 +23,6 @@ class WsHandler {
         this.appHandler.server.on('upgrade', (request, socket, head) => {
             socket.on('error', onSocketError);
 
-            console.log('Parsing session from request...');
-
             this.sessions.sessionParser(request, {}, () => {
                 if (!request.session.userId) {
                     console.log("Not authorized");
@@ -32,8 +30,6 @@ class WsHandler {
                     socket.destroy();
                     return;
                 }
-
-                console.log('Session is parsed!');
 
                 socket.removeListener('error', onSocketError);
 
@@ -48,8 +44,6 @@ class WsHandler {
             const username = request.session.username;
 
             this.sessions.map.set(userId, ws);
-
-            console.log("Logged in");
 
             ws.on('error', console.error);
 

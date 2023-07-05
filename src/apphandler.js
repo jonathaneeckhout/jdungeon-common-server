@@ -21,6 +21,8 @@ class AppHandler {
         this.database = Database.getInstance();
         this.sessions = Sessions.getInstance();
 
+        this.players = new Map();
+
         // Init express app
         this.app = express();
 
@@ -66,7 +68,13 @@ class AppHandler {
                 req.session.userId = id;
                 req.session.username = req.body.username;
 
-                res.json({ error: false, data: { auth: true } });
+                const secret = uuid.v4();
+
+                this.players.set(req.body.username, secret);
+
+                console.log("Player " + req.body.username + " logged in")
+
+                res.json({ error: false, data: { auth: true, secret: secret } });
 
             } catch (error) {
                 res.json({ error: true, reason: "api error" })
@@ -89,6 +97,28 @@ class AppHandler {
                 const id = uuid.v4();
                 req.session.levelId = id;
                 req.session.levelName = req.body.level;
+
+                console.log("Level " + req.body.level + " logged in");
+
+                res.json({ error: false, data: { auth: true } });
+
+            } catch (error) {
+                res.json({ error: true, reason: "api error" })
+            }
+        });
+
+        this.app.post('/level/login/player', async (req, res) => {
+            try {
+                if (!req.session.levelId) {
+                    res.json({ error: true, reason: "unauthorized" })
+                    return;
+                }
+
+                var secret = this.players.get(req.body.username);
+                if (secret == undefined || secret != req.body.secret) {
+                    res.json({ error: false, data: { auth: false } });
+                    return;
+                }
 
                 res.json({ error: false, data: { auth: true } });
 
