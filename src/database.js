@@ -136,6 +136,18 @@ class Database {
 
         return null, (result.rowCount > 0) ? result.rows[0] : null;
     }
+
+    async clear_levels() {
+        await this._pool.query('DELETE FROM levels;');
+    }
+
+    async create_level(level, key, address, port) {
+        var err, _ = await this._pool.query(
+            'INSERT INTO levels (level, key, address, port) VALUES ($1, $2, $3, $4)',
+            [level, key, address, port]
+        );
+        return err;
+    }
 }
 
 

@@ -9,6 +9,8 @@ helpers/run.sh
 # Ignore environment-specific configuration files
 .env
 
+.init.json
+
 # Ignore build output directory
 dist/
 
