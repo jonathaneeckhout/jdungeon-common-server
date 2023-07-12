@@ -27,14 +27,14 @@ function run() {
     }
 }
 
-function init_levels(levels) {
+async function init_levels(levels) {
     console.log("Initializing levels");
 
-    database.clear_levels();
+    await database.clear_levels();
 
     for (let i = 0; i < levels.length; i++) {
         const level = levels[i];
-        database.create_level(level.level, level.key, level.address, level.port);
+        await database.create_level(level.level, level.key, level.address, level.port);
     }
 }
 
