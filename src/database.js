@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
 
 const DB_HOST = process.env.POSTGRES_HOST;
 const DB_PORT = parseInt(process.env.POSTGRES_PORT, 10);
@@ -90,13 +91,26 @@ class Database {
     }
 
     async auth_player(username, password) {
-        var err, result = await this._pool.query('SELECT * FROM players WHERE username = $1 AND password = $2', [username, password]);
+        var err, result = await this._pool.query('SELECT * FROM players WHERE username = $1', [username]);
         if (err) {
             console.error('Error executing query', err);
             return err, false;
         }
 
-        return null, (result.rowCount > 0);
+        if (result.rowCount == 0) {
+            console.log("User " + username + " not found in database");
+            return null, false;
+        }
+
+        try {
+            // Compare the provided password with the hashed password
+            const isMatch = await bcrypt.compare(password, result.rows[0]["password"]);
+            return null, isMatch;
+        } catch (err) {
+            console.error('Error comparing passwords:', err);
+            return err, false;
+        }
+
     }
 
     async auth_level(level, key) {
