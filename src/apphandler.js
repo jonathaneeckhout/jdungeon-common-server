@@ -1,5 +1,6 @@
 const https = require('https');
 const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const uuid = require('uuid');
 
@@ -9,6 +10,8 @@ var Sessions = require("./sessions");
 const APP_PORT = parseInt(process.env.APP_PORT, 10);
 const APP_CRT = process.env.APP_CRT;
 const APP_KEY = process.env.APP_KEY;
+
+const LEVEL_INFO_PATH = "./level_info";
 
 const serverOptions = {
     cert: fs.readFileSync(APP_CRT),
@@ -26,8 +29,10 @@ class AppHandler {
         // Init express app
         this.app = express();
 
-        this.app.use(express.json());
         this.app.use(this.sessions.sessionParser);
+
+        this.app.use(express.json({ limit: '128mb' }));
+        this.app.use(express.urlencoded({ extended: true, limit: '128mb' }));
 
         // Create Express HTTPS server
         this.server = https.createServer(serverOptions, this.app);
@@ -53,7 +58,7 @@ class AppHandler {
     handle_paths() {
         this.app.post('/login/player', async (req, res) => {
             try {
-                var err, result = await this.database.auth_player(req.body.username, req.body.password)
+                var err, result = await this.database.auth_player(req.body.username, req.body.password);
                 if (err) {
                     res.json({ error: true, reason: "api error" });
                     return;
@@ -72,12 +77,12 @@ class AppHandler {
 
                 this.players.set(req.body.username, secret);
 
-                console.log("Player " + req.body.username + " logged in")
+                console.log("Player " + req.body.username + " logged in");
 
                 res.json({ error: false, data: { auth: true, secret: secret } });
 
             } catch (error) {
-                res.json({ error: true, reason: "api error" })
+                res.json({ error: true, reason: "api error" });
             }
         });
 
@@ -103,14 +108,14 @@ class AppHandler {
                 res.json({ error: false, data: { auth: true } });
 
             } catch (error) {
-                res.json({ error: true, reason: "api error" })
+                res.json({ error: true, reason: "api error" });
             }
         });
 
         this.app.post('/level/login/player', async (req, res) => {
             try {
                 if (!req.session.levelId) {
-                    res.json({ error: true, reason: "unauthorized" })
+                    res.json({ error: true, reason: "unauthorized" });
                     return;
                 }
 
@@ -123,14 +128,106 @@ class AppHandler {
                 res.json({ error: false, data: { auth: true } });
 
             } catch (error) {
-                res.json({ error: true, reason: "api error" })
+                res.json({ error: true, reason: "api error" });
+            }
+        });
+
+        this.app.post('/level/info', async (req, res) => {
+            try {
+                if (!req.session.levelId) {
+                    res.json({ error: true, reason: "unauthorized" });
+                    return;
+                }
+
+                var level = req.body.level;
+                var hash = req.body.hash;
+                var info = req.body.info;
+
+                if (!fs.existsSync(LEVEL_INFO_PATH)) {
+                    fs.mkdirSync(LEVEL_INFO_PATH, { recursive: true });
+                }
+
+                var infoFilePath = path.join(LEVEL_INFO_PATH, level + "-info.json");
+
+                var err = await fs.promises.writeFile(infoFilePath, JSON.stringify(info));
+                if (err) {
+                    res.json({ error: true, reason: "api error" });
+                    return;
+                } else {
+                    console.log('Level info is stored in:', infoFilePath);
+                }
+
+                var hashFilePath = path.join(LEVEL_INFO_PATH, level + "-hash.json");
+
+                var err = await fs.promises.writeFile(hashFilePath, JSON.stringify({ hash: hash }));
+                if (err) {
+                    res.json({ error: true, reason: "api error" });
+                    return;
+                } else {
+                    console.log('Level hash is stored in:', hashFilePath);
+                }
+
+                res.json({ error: false });
+
+
+            } catch (error) {
+                res.json({ error: true, reason: "api error" });
+            }
+        });
+
+        this.app.get('/level/info', async (req, res) => {
+            try {
+                if (!req.session.userId) {
+                    res.json({ error: true, reason: "unauthorized" });
+                    return;
+                }
+
+                var level = req.query.level;
+                var hash = req.query.hash;
+
+                if (!level || level == "") {
+                    res.json({ error: true, reason: "api error" });
+                    return;
+                }
+
+                var stored_hash = 0
+
+                if (hash) {
+                    var hashFilePath = path.join(LEVEL_INFO_PATH, level + "-hash.json");
+                    var err, data = await fs.promises.readFile(hashFilePath, 'utf-8');
+                    if (err) {
+                        res.json({ error: true, reason: "api error" });
+                        return;
+                    }
+
+                    var jsonData = JSON.parse(data);
+                    stored_hash = jsonData.hash;
+                    if (stored_hash == hash) {
+                        res.json({ error: false, data: { new: false, hash: 0, info: {} } });
+                        return;
+                    }
+                }
+
+                var infoFilePath = path.join(LEVEL_INFO_PATH, level + "-info.json");
+                var err, data = await fs.promises.readFile(infoFilePath, 'utf-8');
+                if (err) {
+                    res.json({ error: true, reason: "api error" });
+                    return;
+                }
+
+                var jsonData = JSON.parse(data);
+                res.json({ error: false, data: { new: true, hash: stored_hash, info: jsonData } });
+
+
+            } catch (error) {
+                res.json({ error: true, reason: "api error" });
             }
         });
 
         this.app.get('/api/characters/:name', async (req, res) => {
             try {
                 if (!req.session.levelId) {
-                    res.json({ error: true, reason: "unauthorized" })
+                    res.json({ error: true, reason: "unauthorized" });
                     return;
                 }
 
@@ -146,7 +243,7 @@ class AppHandler {
                     }
                 }
             } catch (error) {
-                res.json({ error: true, reason: "api error" })
+                res.json({ error: true, reason: "api error" });
             }
         });
     }
