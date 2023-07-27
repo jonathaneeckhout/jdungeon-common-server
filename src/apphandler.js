@@ -246,6 +246,26 @@ class AppHandler {
                 res.json({ error: true, reason: "api error" });
             }
         });
+
+        this.app.post('/api/characters', async (req, res) => {
+            try {
+                if (!req.session.levelId) {
+                    res.json({ error: true, reason: "unauthorized" });
+                    return;
+                }
+
+                var err = await this.database.update_character(req.body.character, req.body.level, req.body.position);
+                if (err) {
+                    res.json({ error: true, reason: "api error" });
+                    return;
+                }
+
+                res.json({ error: false });
+
+            } catch (error) {
+                res.json({ error: true, reason: "api error" });
+            }
+        });
     }
 
 }

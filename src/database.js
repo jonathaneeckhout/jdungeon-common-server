@@ -134,7 +134,7 @@ class Database {
         try {
             await this._pool.query(
                 'INSERT INTO characters (name, player, level, pos_x, pos_y) VALUES ($1, $2, $3, $4, $5)',
-                [player, character, level, position.x, position.y]
+                [character, player, level, position.x, position.y]
             );
         } catch (error) {
             console.error('Error executing query', error);
@@ -150,6 +150,14 @@ class Database {
             return error, null;
         }
         return null, (result.rowCount > 0) ? result.rows[0] : null;
+    }
+
+    async update_character(character_name, level, position) {
+        try {
+            await this._pool.query('UPDATE characters SET level = $1, pos_x = $2, pos_y = $3 WHERE name = $4;', [level, position.x, position.y, character_name]);
+        } catch (error) {
+            return error;
+        }
     }
 
     async get_level(level_name) {
