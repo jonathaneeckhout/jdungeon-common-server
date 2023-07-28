@@ -100,6 +100,14 @@ class Database {
         }
     }
 
+    async update_character_stats(character_name, experience, experience_level) {
+        try {
+            await this._pool.query('UPDATE characters SET exp = $1, exp_level = $2 WHERE name = $3;', [experience, experience_level, character_name]);
+        } catch (error) {
+            return error;
+        }
+    }
+
     async get_level(level_name) {
         try {
             var result = await this._pool.query('SELECT * FROM levels WHERE level = $1', [level_name]);

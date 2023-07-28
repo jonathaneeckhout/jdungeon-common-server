@@ -237,7 +237,20 @@ class AppHandler {
                     res.json({ error: true, reason: "api error" });
                 } else {
                     if (character) {
-                        res.json({ error: false, data: { name: character.name, player: character.player, level: character.level, position: { x: character.pos_x, y: character.pos_y } } });
+                        res.json({
+                            error: false,
+                            data: {
+                                name: character.name,
+                                player: character.player,
+                                level: character.level,
+                                position: {
+                                    x: character.pos_x,
+                                    y: character.pos_y
+                                },
+                                experience: character.exp,
+                                experience_level: character.exp_level,
+                            }
+                        });
                     } else {
                         res.json({ error: true, reason: "not found" });
                     }
@@ -255,6 +268,26 @@ class AppHandler {
                 }
 
                 var err = await this.database.update_character(req.body.character, req.body.level, req.body.position);
+                if (err) {
+                    res.json({ error: true, reason: "api error" });
+                    return;
+                }
+
+                res.json({ error: false });
+
+            } catch (error) {
+                res.json({ error: true, reason: "api error" });
+            }
+        });
+
+        this.app.post('/api/character/stats', async (req, res) => {
+            try {
+                if (!req.session.levelId) {
+                    res.json({ error: true, reason: "unauthorized" });
+                    return;
+                }
+
+                var err = await this.database.update_character_stats(req.body.character, req.body.experience, req.body.experience_level);
                 if (err) {
                     res.json({ error: true, reason: "api error" });
                     return;
