@@ -7,36 +7,6 @@ const DB_USER = process.env.POSTGRES_USER;
 const DB_PASSWORD = process.env.POSTGRES_PASSWORD;
 const DB_DB = process.env.POSTGRES_DB;
 
-const createLevelsTableQuery = `
-  CREATE TABLE IF NOT EXISTS levels (
-    id SERIAL PRIMARY KEY,
-    level VARCHAR(255) NOT NULL UNIQUE,
-    key VARCHAR(255) NOT NULL,
-    address VARCHAR(255) NOT NULL,
-    port INTEGER NOT NULL
-  );
-`;
-
-const createPlayersTableQuery = `
-  CREATE TABLE IF NOT EXISTS players (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(255) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL,
-    password VARCHAR(255) NOT NULL
-  );
-`;
-
-const createCharactersTableQuery = `
-  CREATE TABLE IF NOT EXISTS characters (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL UNIQUE,
-    player VARCHAR(255) NOT NULL,
-    level VARCHAR(255) NOT NULL,
-    pos_x REAL,
-    pos_y REAL
-  );
-`;
-
 class Database {
     constructor() {
         this.online = false;
@@ -60,36 +30,6 @@ class Database {
             password: DB_PASSWORD,
             port: DB_PORT, // default PostgreSQL port
         });
-
-        // Create level table
-        try {
-            await this._pool.query(createLevelsTableQuery);
-        } catch (error) {
-            console.error('Error creating level table:', error);
-            return false;
-        }
-
-        console.log('Levels table created successfully');
-
-        // Create players table
-        try {
-            await this._pool.query(createPlayersTableQuery);
-        } catch (error) {
-            console.error('Error creating players table:', error);
-            return false;
-        }
-
-        console.log('Players table created successfully');
-
-        // Create characters table
-        try {
-            await this._pool.query(createCharactersTableQuery);
-        } catch (error) {
-            console.error('Error creating characters table:', error);
-            return false;
-        }
-
-        console.log('Characters table created successfully');
 
         this.online = true;
         return true;
