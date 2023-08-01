@@ -249,6 +249,8 @@ class AppHandler {
                                 },
                                 experience: character.exp,
                                 experience_level: character.exp_level,
+                                gold: character.gold,
+                                inventory: character.inventory
                             }
                         });
                     } else {
@@ -267,7 +269,7 @@ class AppHandler {
                     return;
                 }
 
-                var err = await this.database.update_character(req.body.character, req.body.level, req.body.position);
+                var err = await this.database.update_character(req.body.character, req.body.level, req.body.position, req.body.gold);
                 if (err) {
                     res.json({ error: true, reason: "api error" });
                     return;
