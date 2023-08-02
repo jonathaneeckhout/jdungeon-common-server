@@ -268,8 +268,9 @@ class AppHandler {
                     res.json({ error: true, reason: "unauthorized" });
                     return;
                 }
+                console.log(req.body)
 
-                var err = await this.database.update_character(req.body.character, req.body.level, req.body.position, req.body.gold);
+                var err = await this.database.update_character(req.body.character, req.body.level, req.body.position, req.body.gold, req.body.inventory);
                 if (err) {
                     res.json({ error: true, reason: "api error" });
                     return;

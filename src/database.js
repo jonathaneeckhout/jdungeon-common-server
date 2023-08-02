@@ -92,10 +92,11 @@ class Database {
         return null, (result.rowCount > 0) ? result.rows[0] : null;
     }
 
-    async update_character(character_name, level, position, gold) {
+    async update_character(character_name, level, position, gold, inventory) {
         try {
-            await this._pool.query('UPDATE characters SET level = $1, pos_x = $2, pos_y = $3, gold = $4 WHERE name = $5;', [level, position.x, position.y, gold, character_name]);
+            await this._pool.query('UPDATE characters SET level = $1, pos_x = $2, pos_y = $3, gold = $4, inventory = $5 WHERE name = $6;', [level, position.x, position.y, gold, inventory, character_name]);
         } catch (error) {
+            console.error('Error executing query', error);
             return error;
         }
     }
@@ -104,6 +105,7 @@ class Database {
         try {
             await this._pool.query('UPDATE characters SET exp = $1, exp_level = $2 WHERE name = $3;', [experience, experience_level, character_name]);
         } catch (error) {
+            console.error('Error executing query', error);
             return error;
         }
     }
