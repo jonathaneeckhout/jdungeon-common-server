@@ -92,9 +92,12 @@ class Database {
         return null, (result.rowCount > 0) ? result.rows[0] : null;
     }
 
-    async update_character(character_name, level, position, gold, inventory) {
+    async update_character(character_name, level, position, gold, inventory, equipment) {
         try {
-            await this._pool.query('UPDATE characters SET level = $1, pos_x = $2, pos_y = $3, gold = $4, inventory = $5 WHERE name = $6;', [level, position.x, position.y, gold, inventory, character_name]);
+            await this._pool.query(
+                'UPDATE characters SET level = $1, pos_x = $2, pos_y = $3, gold = $4, inventory = $5, equipment = $6 WHERE name = $7;',
+                [level, position.x, position.y, gold, inventory, equipment, character_name]
+            );
         } catch (error) {
             console.error('Error executing query', error);
             return error;

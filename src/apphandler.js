@@ -250,7 +250,8 @@ class AppHandler {
                                 experience: character.exp,
                                 experience_level: character.exp_level,
                                 gold: character.gold,
-                                inventory: character.inventory
+                                inventory: character.inventory,
+                                equipment: character.equipment
                             }
                         });
                     } else {
@@ -268,9 +269,15 @@ class AppHandler {
                     res.json({ error: true, reason: "unauthorized" });
                     return;
                 }
-                console.log(req.body)
 
-                var err = await this.database.update_character(req.body.character, req.body.level, req.body.position, req.body.gold, req.body.inventory);
+                var err = await this.database.update_character(
+                    req.body.character,
+                    req.body.level,
+                    req.body.position,
+                    req.body.gold,
+                    req.body.inventory,
+                    req.body.equipment
+                );
                 if (err) {
                     res.json({ error: true, reason: "api error" });
                     return;
