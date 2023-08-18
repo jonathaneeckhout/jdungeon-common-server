@@ -224,6 +224,21 @@ class AppHandler {
             }
         });
 
+        this.app.get('/level/ping', async (req, res) => {
+            try {
+                if (!req.session.levelId) {
+                    res.json({ error: true, reason: "unauthorized" });
+                    return;
+                }
+
+                res.json({ error: false });
+
+
+            } catch (error) {
+                res.json({ error: true, reason: "api error" });
+            }
+        });
+
         this.app.get('/api/characters/:name', async (req, res) => {
             try {
                 if (!req.session.levelId) {
