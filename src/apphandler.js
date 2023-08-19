@@ -56,7 +56,7 @@ class AppHandler {
     }
 
     handle_paths() {
-        this.app.post('/login/player', async (req, res) => {
+        this.app.post('/player/login', async (req, res) => {
             try {
                 var err, result = await this.database.auth_player(req.body.username, req.body.password);
                 if (err) {
@@ -86,7 +86,7 @@ class AppHandler {
             }
         });
 
-        this.app.post('/login/level', async (req, res) => {
+        this.app.post('/level/login', async (req, res) => {
             try {
                 var err, result = await this.database.auth_level(req.body.level, req.body.key)
                 if (err) {
@@ -239,7 +239,7 @@ class AppHandler {
             }
         });
 
-        this.app.get('/api/characters/:name', async (req, res) => {
+        this.app.get('/level/characters/:name', async (req, res) => {
             try {
                 if (!req.session.levelId) {
                     res.json({ error: true, reason: "unauthorized" });
@@ -262,9 +262,7 @@ class AppHandler {
                                     x: character.pos_x,
                                     y: character.pos_y
                                 },
-                                experience: character.exp,
-                                experience_level: character.exp_level,
-                                gold: character.gold,
+                                stats: character.stats,
                                 inventory: character.inventory,
                                 equipment: character.equipment
                             }
@@ -278,7 +276,7 @@ class AppHandler {
             }
         });
 
-        this.app.post('/api/characters', async (req, res) => {
+        this.app.post('/level/characters', async (req, res) => {
             try {
                 if (!req.session.levelId) {
                     res.json({ error: true, reason: "unauthorized" });
@@ -289,7 +287,7 @@ class AppHandler {
                     req.body.character,
                     req.body.level,
                     req.body.position,
-                    req.body.gold,
+                    req.body.stats,
                     req.body.inventory,
                     req.body.equipment
                 );
@@ -305,21 +303,61 @@ class AppHandler {
             }
         });
 
-        this.app.post('/api/character/stats', async (req, res) => {
+        this.app.get('/player/characters', async (req, res) => {
             try {
-                if (!req.session.levelId) {
+                if (!req.session.userId) {
                     res.json({ error: true, reason: "unauthorized" });
                     return;
                 }
 
-                var err = await this.database.update_character_stats(req.body.character, req.body.experience, req.body.experience_level);
+                var err, characters = await this.database.get_characters_from_player(req.session.username);
                 if (err) {
+                    console.error('Error executing query', err);
                     res.json({ error: true, reason: "api error" });
+                } else {
+                    var data = []
+                    for (let i = 0; i < characters.length; i++) {
+                        var character = characters[i];
+                        data.push({
+                            name: character.name,
+                            level: character.level
+                        });
+                    }
+
+                    res.json({
+                        error: false,
+                        data: data
+                    });
+                }
+            } catch (error) {
+                res.json({ error: true, reason: "api error" });
+            }
+        });
+
+        this.app.get('/player/levels/:level', async (req, res) => {
+            try {
+                if (!req.session.userId) {
+                    res.json({ error: true, reason: "unauthorized" });
                     return;
                 }
 
-                res.json({ error: false });
-
+                var err, level = await this.database.get_level(req.params.level);
+                if (err) {
+                    console.error('Error executing query', err);
+                    res.json({ error: true, reason: "api error" });
+                } else {
+                    if (level) {
+                        res.json({
+                            error: false,
+                            data: {
+                                address: level.address,
+                                port: level.port
+                            }
+                        });
+                    } else {
+                        res.json({ error: true, reason: "not found" });
+                    }
+                }
             } catch (error) {
                 res.json({ error: true, reason: "api error" });
             }

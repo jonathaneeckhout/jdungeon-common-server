@@ -92,21 +92,22 @@ class Database {
         return null, (result.rowCount > 0) ? result.rows[0] : null;
     }
 
-    async update_character(character_name, level, position, gold, inventory, equipment) {
+    async get_characters_from_player(player) {
         try {
-            await this._pool.query(
-                'UPDATE characters SET level = $1, pos_x = $2, pos_y = $3, gold = $4, inventory = $5, equipment = $6 WHERE name = $7;',
-                [level, position.x, position.y, gold, inventory, equipment, character_name]
-            );
+            var result = await this._pool.query('SELECT * FROM characters WHERE player = $1', [player]);
         } catch (error) {
             console.error('Error executing query', error);
-            return error;
+            return error, null;
         }
+        return null, result.rows;
     }
 
-    async update_character_stats(character_name, experience, experience_level) {
+    async update_character(character_name, level, position, stats, inventory, equipment) {
         try {
-            await this._pool.query('UPDATE characters SET exp = $1, exp_level = $2 WHERE name = $3;', [experience, experience_level, character_name]);
+            await this._pool.query(
+                'UPDATE characters SET level = $1, pos_x = $2, pos_y = $3, stats = $4, inventory = $5, equipment = $6 WHERE name = $7;',
+                [level, position.x, position.y, stats, inventory, equipment, character_name]
+            );
         } catch (error) {
             console.error('Error executing query', error);
             return error;
