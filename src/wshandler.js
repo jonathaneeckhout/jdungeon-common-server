@@ -4,9 +4,6 @@ var Database = require("./database");
 var Sessions = require("./sessions");
 var AppHandler = require("./apphandler");
 
-const STARTER_LEVEL = process.env.STARTER_LEVEL;
-const STARTER_POS = JSON.parse(process.env.STARTER_POS);
-
 function onSocketError(err) {
     console.error(err);
 }
@@ -75,55 +72,11 @@ class WsHandler {
 
     parse_message(ws, username, message) {
         switch (message.type) {
-            case "load-character":
-                this.handle_load_character_message(ws, message.args);
-                break;
             case "send-chat-message":
                 this.handle_send_message_message(ws, username, message.args);
             default:
                 break;
         }
-    }
-
-    async handle_load_character_message(ws, args) {
-        // Get the character from the database
-        var err, result = await this.database.get_character(args.character);
-
-        if (err) {
-            ws.send(JSON.stringify({ error: true, reason: "api error" }));
-            return;
-        }
-
-        var level = "";
-
-        if (result == null) {
-            console.log("Creating character for player " + args.username);
-            err = await this.database.create_character(args.username, args.username, STARTER_LEVEL, STARTER_POS)
-            if (err) {
-                ws.send(JSON.stringify({ error: true, reason: "api error" }));
-                return;
-            }
-            level = STARTER_LEVEL;
-
-        } else {
-            level = result.level;
-        }
-
-        err, result = await this.database.get_level(level);
-
-        this.send_load_character_response(ws, level, result.address, result.port);
-    }
-
-    send_load_character_response(ws, level, address, port) {
-        ws.send(JSON.stringify({
-            "type": "load-character-response",
-            "error": false,
-            "data": {
-                "level": level,
-                "address": address,
-                "port": port
-            }
-        }));
     }
 
     handle_send_message_message(ws, username, args) {

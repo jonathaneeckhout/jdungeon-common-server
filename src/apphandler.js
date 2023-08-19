@@ -11,6 +11,11 @@ const APP_PORT = parseInt(process.env.APP_PORT, 10);
 const APP_CRT = process.env.APP_CRT;
 const APP_KEY = process.env.APP_KEY;
 
+const STARTER_LEVEL = process.env.STARTER_LEVEL;
+const STARTER_POS = JSON.parse(process.env.STARTER_POS);
+
+const MAX_CHARACTERS_PER_PLAYER = 5;
+
 const LEVEL_INFO_PATH = "./level_info";
 
 const serverOptions = {
@@ -329,6 +334,39 @@ class AppHandler {
                         data: data
                     });
                 }
+            } catch (error) {
+                res.json({ error: true, reason: "api error" });
+            }
+        });
+
+        this.app.post('/player/characters/create', async (req, res) => {
+            try {
+                if (!req.session.userId) {
+                    res.json({ error: true, reason: "unauthorized" });
+                    return;
+                }
+
+                var err, characters = await this.database.get_characters_from_player(req.session.username);
+                if (err) {
+                    console.error('Error executing query', err);
+                    res.json({ error: true, reason: "api error" });
+                } else {
+                    if (characters.length >= MAX_CHARACTERS_PER_PLAYER) {
+                        console.error('Player ' + req.session.username + " has reached the limit of characters allowed per player");
+                        res.json({ error: true, reason: "max characters reached" });
+                        return;
+                    }
+
+                }
+
+                err = await this.database.create_character(req.session.username, req.body.character, STARTER_LEVEL, STARTER_POS);
+                if (err) {
+                    res.json({ error: true, reason: "api error" });
+                    return;
+                }
+
+                res.json({ error: false });
+
             } catch (error) {
                 res.json({ error: true, reason: "api error" });
             }

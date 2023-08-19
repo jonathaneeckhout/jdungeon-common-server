@@ -80,6 +80,8 @@ class Database {
             console.error('Error executing query', error);
             return error;
         }
+
+        return null;
     }
 
     async get_character(character_name) {
